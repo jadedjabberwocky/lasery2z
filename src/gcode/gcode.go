@@ -13,8 +13,9 @@ import (
 )
 
 type param struct {
-	name  string
-	value float64
+	name      string
+	value     float64
+	decPoints int
 }
 
 type instruction struct {
@@ -36,12 +37,18 @@ var (
 func Process(r io.Reader, w io.Writer, cm coordmap.CoordMap) error {
 	br := bufio.NewReader(r)
 
+	mustBreak := false
 	for {
-		line, err := br.ReadString('\n')
-		if err == io.EOF {
+		if mustBreak {
 			return nil
 		}
-		if err != nil {
+
+		line, err := br.ReadString('\n')
+		if err == io.EOF {
+			// Must still continue through the for loop
+			// to handle the line that was read
+			mustBreak = true
+		} else if err != nil {
 			return err
 		}
 
@@ -71,34 +78,34 @@ func Process(r io.Reader, w io.Writer, cm coordmap.CoordMap) error {
 }
 
 func (instr *instruction) addZifY(cm coordmap.CoordMap) error {
-	y, yindex := instr.getParamValue("Y")
+	y, yindex := instr.getParam("Y")
 	if yindex == -1 {
 		return nil
 	}
 
-	z, zindex := instr.getParamValue("Z")
-	dz, err := cm.Map(y)
+	z, zindex := instr.getParam("Z")
+	dz, err := cm.Map(y.value)
 	if err != nil {
 		return err
 	}
 
-	z += dz
+	z.value += dz
 	if zindex == -1 {
-		instr.params = append(instr.params, param{"Z", z})
+		instr.params = append(instr.params, param{"Z", z.value, y.decPoints})
 		return nil
 	}
 
-	instr.params[zindex].value = z
+	instr.params[zindex].value = z.value
 	return nil
 }
 
-func (instr *instruction) getParamValue(name string) (float64, int) {
+func (instr *instruction) getParam(name string) (param, int) {
 	for i, p := range instr.params {
 		if p.name == name {
-			return p.value, i
+			return p, i
 		}
 	}
-	return 0, -1
+	return param{}, -1
 }
 
 func parse(line string) (*instruction, error) {
@@ -116,12 +123,11 @@ func parse(line string) (*instruction, error) {
 			continue
 		}
 
-		key := pm[:1]
-		value, err := strconv.ParseFloat(pm[1:], 64)
+		p, err := parseParam(pm)
 		if err != nil {
-			return &instruction{raw: line}, ErrBadCommand
+			return &instruction{raw: line}, err
 		}
-		paramList = append(paramList, param{key, value})
+		paramList = append(paramList, p)
 	}
 
 	return &instruction{
@@ -129,6 +135,28 @@ func parse(line string) (*instruction, error) {
 		cmd:     m[1],
 		params:  paramList,
 		comment: m[3],
+	}, nil
+}
+
+func parseParam(p string) (param, error) {
+	key := p[:1]
+	value, err := strconv.ParseFloat(p[1:], 64)
+	if err != nil {
+		return param{}, ErrBadCommand
+	}
+	decPoint := strings.IndexRune(p, '.')
+	if decPoint < 0 {
+		return param{
+			name:      key,
+			value:     value,
+			decPoints: 0,
+		}, nil
+	}
+
+	return param{
+		name:      key,
+		value:     value,
+		decPoints: len(p) - decPoint - 1,
 	}, nil
 }
 
@@ -146,7 +174,8 @@ func (i *instruction) String() string {
 		if sb.Len() > 0 {
 			sb.WriteRune(' ')
 		}
-		sb.WriteString(fmt.Sprintf("%s%v", param.name, param.value))
+		format := fmt.Sprintf("%%s%%.%df", param.decPoints)
+		sb.WriteString(fmt.Sprintf(format, param.name, param.value))
 	}
 
 	if i.comment != "" {
