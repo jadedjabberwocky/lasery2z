@@ -43,7 +43,7 @@ func openWriter(filename string) (io.WriteCloser, error) {
 		return os.Stdout, nil
 	}
 
-	return os.Open(filename)
+	return os.Create(filename)
 }
 
 func run() error {
