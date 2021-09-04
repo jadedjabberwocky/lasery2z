@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrImageWidthZero = errors.New("image width is 0")
+	ErrImageTooSmall  = errors.New("image is too small (min size 2x2)")
 )
 
 func New(filename string, options *Options) (*deltaymap.DeltaYMap, error) {
@@ -38,13 +39,17 @@ func New(filename string, options *Options) (*deltaymap.DeltaYMap, error) {
 	y2 := img.Bounds().Max.Y
 	dy := y2 - y1
 
+	if dx < 2 || dy < 2 {
+		return nil, ErrImageTooSmall
+	}
+
 	w := options.imageWidth
 	if w == 0 {
 		return nil, ErrImageWidthZero
 	}
 	h := options.imageHeight
 	if h == 0 {
-		h = float64(y2-y1) * w / float64(x2-x1)
+		h = float64(dy) * w / float64(dx)
 	}
 
 	z := make([]float64, dx)
@@ -52,14 +57,14 @@ func New(filename string, options *Options) (*deltaymap.DeltaYMap, error) {
 		x := i + x1
 		y := depthAt(img, y1, y2, x)
 
-		mapz := float64(y) * h / float64(dy)
+		mapz := y * h / float64(dy-1)
 		z[i] = mapz
 	}
 
-	return deltaymap.New(0, w/float64(dx), z), nil
+	return deltaymap.New(0, w/float64(dx-1), z), nil
 }
 
-func depthAt(img image.Image, y1, y2 int, x int) int {
+func depthAt(img image.Image, y1, y2 int, x int) float64 {
 	for y := y1; y < y2; y++ {
 		c := img.At(x, y)
 		r, g, b, a := c.RGBA()
@@ -68,9 +73,9 @@ func depthAt(img image.Image, y1, y2 int, x int) int {
 		fb := float64(b) / float64(65535)
 		fa := float64(a) / float64(65535)
 		v := (fr + fg + fb) * fa / 3
-		if v > 0.5 {
-			return y
+		if v > 0 {
+			return float64(y) + (1 - v)
 		}
 	}
-	return y2 - 1
+	return float64(y2) - 1
 }
