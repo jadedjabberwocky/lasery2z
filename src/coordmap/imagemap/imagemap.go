@@ -49,7 +49,7 @@ func New(filename string, options *Options) (*deltaymap.DeltaYMap, error) {
 	}
 	h := options.imageHeight
 	if h == 0 {
-		h = float64(dy) * w / float64(dx)
+		h = float64(dy-1) * w / float64(dx-1)
 	}
 
 	z := make([]float64, dx)
