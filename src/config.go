@@ -2,8 +2,10 @@ package main
 
 type Config struct {
 	InputFilename     string `kong:"name='if',short='i',help='Input filename. Use - for stdin'"`
-	OutputFilename    string `kong:"name='of',short='o',help:'Output filename. Use - for stdout'"`
-	MapOutputFilename string `kong:"name='mof',help:'Optional filename to output map to'"`
+	OutputFilename    string `kong:"name='of',short='o',help='Output filename. Use - for stdout'"`
+	MapOutputFilename string `kong:"name='mof',help='Optional filename to output map to'"`
+
+	Help struct{} `kong:"cmd,default"`
 
 	ImageMap struct {
 		ImageInputFilename string  `kong:"name='iif',help='Filename of image to use for mapping',required"`
