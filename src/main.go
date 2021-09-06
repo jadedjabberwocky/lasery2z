@@ -52,7 +52,7 @@ func run() error {
 		cm  coordmap.CoordMap
 	)
 
-	ctx := kong.Parse(cfg)
+	ctx := kong.Parse(cfg, kong.UsageOnError())
 
 	cmd := ctx.Command()
 	switch cmd {
