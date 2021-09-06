@@ -52,12 +52,17 @@ func New(filename string, options *Options) (*deltaymap.DeltaYMap, error) {
 		h = float64(dy-1) * w / float64(dx-1)
 	}
 
+	originZ := float64(0)
 	z := make([]float64, dx)
 	for i := 0; i < dx; i++ {
 		x := i + x1
 		y := depthAt(img, y1, y2, x)
 
 		mapz := y * h / float64(dy-1)
+		if i == 0 {
+			originZ = mapz
+		}
+		mapz = originZ - mapz
 		z[i] = mapz
 	}
 
